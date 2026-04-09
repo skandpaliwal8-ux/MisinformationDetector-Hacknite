@@ -74,6 +74,7 @@ class VerdictResponse(BaseModel):
     summary:          str | None
     red_flags:        list[str]
     timeline:         list[dict]
+    sources:          list[str] 
     input_type:       str | None
     created_at:       str | None
 
@@ -109,18 +110,19 @@ async def get_results(job_id: str):
             return VerdictResponse(
                 job_id=job_id, status=status,
                 verdict=None, confidence_score=None, summary=message,
-                red_flags=[], timeline=[], input_type=None, created_at=None,
+                red_flags=[], timeline=[], sources=[],
+                input_type=None, created_at=None,
             )
 
         verdict_row = conn.execute(
-            "SELECT verdict, confidence, summary, red_flags, timeline, input_type, created_at FROM verdicts WHERE id = ?",
+            "SELECT verdict, confidence, summary, red_flags, timeline, sources, input_type, created_at FROM verdicts WHERE id = ?",
             (job_id,),
         ).fetchone()
 
         if not verdict_row:
             raise HTTPException(status_code=404, detail="Verdict not stored yet")
 
-        v, conf, summary, flags_json, timeline_json, input_type, created_at = verdict_row
+        v, conf, summary, flags_json, timeline_json, sources_json, input_type, created_at = verdict_row
         return VerdictResponse(
             job_id=job_id, status="done",
             verdict=v,
@@ -128,6 +130,7 @@ async def get_results(job_id: str):
             summary=summary,
             red_flags=json.loads(flags_json or "[]"),
             timeline=json.loads(timeline_json or "[]"),
+            sources=json.loads(sources_json or "[]"),
             input_type=input_type,
             created_at=created_at,
         )
@@ -229,11 +232,23 @@ def _update_status(job_id: str, status: str, message: str):
 
 
 def _store_verdict(job_id: str, state):
+    # Collect all sources from all signals
+    all_sources = []
+    for key in ["ela_signal", "cnndetect_signal", "groq_vision_signal",
+                "reverse_search_signal", "fact_check_signal", "claim_verify_signal"]:
+        sig = state.get(key)
+        if sig and sig.get("sources"):
+            all_sources.extend(sig["sources"])
+
+    # Deduplicate and filter empty
+    sources = list(dict.fromkeys(filter(None, all_sources)))
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             """INSERT OR REPLACE INTO verdicts
-               (id, raw_input, input_type, verdict, confidence, summary, red_flags, timeline, full_state, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, raw_input, input_type, verdict, confidence, summary,
+                red_flags, timeline, sources, full_state, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 job_id,
                 state.get("raw_input", "")[:500],
@@ -243,7 +258,8 @@ def _store_verdict(job_id: str, state):
                 state.get("summary", ""),
                 json.dumps(state.get("red_flags", [])),
                 json.dumps(state.get("timeline", [])),
-                json.dumps({k: str(v) for k, v in state.items() if k not in ("image_bytes",)}),
+                json.dumps(sources),
+                json.dumps({k: str(v) for k, v in state.items() if k != "image_bytes"}),
                 datetime.utcnow().isoformat(),
             ),
         )
@@ -270,6 +286,8 @@ async def debug(req: AnalyzeRequest):
             "verdict":       state.get("verdict"),
             "confidence":    state.get("confidence_score"),
             "red_flags":     state.get("red_flags"),
+            "fact_check": state.get("fact_check_signal"),
+            "claim_verify": state.get("claim_verify_signal")
         }
     except Exception as e:
         return {"error": str(e)}

@@ -20,7 +20,6 @@ def triage_agent(state: PipelineState) -> PipelineState:
 
     elif raw.startswith("http"):
         state["input_type"] = "article_url"
-
     else:
         state["input_type"] = "text_claim"
 

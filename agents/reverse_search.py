@@ -1,23 +1,10 @@
 """
 Reverse Search Agent
 --------------------
-Searches SearXNG for the image/article URL to find the original source,
-first publication date, and whether it has appeared in a different context.
-"""
-import httpx
-from datetime import datetime
-from agents.state import AgentSignal, PipelineState
-import config
-
-
-"""
-Reverse Search Agent
---------------------
 Uses DuckDuckGo search (no API key, no server needed) to find
 where this content has appeared online before.
 """
 from duckduckgo_search import DDGS
-from datetime import datetime
 from agents.state import AgentSignal, PipelineState
 
 
@@ -102,99 +89,6 @@ def _analyse_results(results: list[dict], original_input: str):
         details += f" Content appears widely across {len(results)} sources."
 
     return timeline, min(score, 1.0), details, red_flags
-
-
-def _no_result(msg: str) -> AgentSignal:
-    return AgentSignal(score=0.0, confidence=0.0, details=msg, sources=[])
-
-# ── SearXNG helpers ───────────────────────────────────────────────────────────
-
-def _image_search(image_url: str) -> list[dict]:
-    """Use SearXNG's images engine to find where this image appeared."""
-    try:
-        with httpx.Client(timeout=15) as client:
-            r = client.get(
-                f"{config.SEARXNG_BASE_URL}/search",
-                params={
-                    "q": image_url,
-                    "engines": "google images,bing images",
-                    "format": "json",
-                    "safesearch": "0",
-                },
-            )
-            r.raise_for_status()
-            return r.json().get("results", [])
-    except Exception:
-        return []
-
-
-def _text_search(query: str) -> list[dict]:
-    try:
-        from tavily import TavilyClient
-        client = TavilyClient(api_key=config.TAVILY_API_KEY)
-        response = client.search(query=query, max_results=10)
-        return [
-            {
-                "title": r.get("title", ""),
-                "href":  r.get("url", ""),
-                "body":  r.get("content", "")[:150],
-            }
-            for r in response.get("results", [])
-        ]
-    except Exception:
-        return []
-
-# ── Analysis ──────────────────────────────────────────────────────────────────
-
-def _analyse_results(results: list[dict], original_input: str):
-    timeline = []
-    red_flags = []
-
-    for r in results[:10]:
-        entry = {
-            "title":    r.get("title", "Unknown"),
-            "url":      r.get("url", ""),
-            "date":     r.get("publishedDate", "Unknown"),
-            "engine":   r.get("engine", ""),
-        }
-        timeline.append(entry)
-
-    # Find the earliest dated result
-    dated = [
-        r for r in timeline
-        if r["date"] != "Unknown"
-    ]
-
-    score = 0.0
-    details = f"Found {len(results)} appearances of this content online."
-
-    if dated:
-        try:
-            earliest = min(dated, key=lambda x: _parse_date(x["date"]))
-            details += f" Earliest known appearance: {earliest['date']} at {earliest['url']}."
-
-            # If earliest source is different from the claim's source — red flag
-            if original_input not in earliest["url"]:
-                score += 0.3
-                red_flags.append(
-                    f"Content first appeared at a different source: {earliest['url']}"
-                )
-        except Exception:
-            pass
-
-    if len(results) > 20:
-        details += f" Content has been shared widely ({len(results)}+ sources)."
-
-    return timeline, min(score, 1.0), details, red_flags
-
-
-def _parse_date(date_str: str) -> datetime:
-    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%B %d, %Y"):
-        try:
-            return datetime.strptime(date_str, fmt)
-        except ValueError:
-            continue
-    return datetime.max
 
 
 def _no_result(msg: str) -> AgentSignal:

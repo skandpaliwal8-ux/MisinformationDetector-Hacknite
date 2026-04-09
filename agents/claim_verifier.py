@@ -1,16 +1,98 @@
 """
 Claim Verifier Agent
 --------------------
-For each extracted claim, searches DuckDuckGo to find
+For each extracted claim, searches SearXNG to find
 contradicting or supporting evidence from reliable sources.
 Uses Groq to reason about whether the evidence supports or contradicts the claim.
 """
-from duckduckgo_search import DDGS
-from groq import Groq
+import httpx                          # ← ADDED
 import config
+from groq import Groq
 from agents.state import AgentSignal, PipelineState
 
 _client = Groq(api_key=config.GROQ_API_KEY)
+
+
+def _search(query: str, max_results: int = 5) -> list[dict]:
+    try:
+        with httpx.Client(timeout=15) as client:
+            r = client.get(
+                "http://localhost:8080/search",
+                params={
+                    "q":          query,
+                    "format":     "json",
+                    "safesearch": "0",
+                    "time_range": "month",    # ADD THIS
+                },
+                headers={"X-Forwarded-For": "127.0.0.1"},
+            )
+            r.raise_for_status()
+            results = r.json().get("results", [])
+            return [
+                {
+                    "title": res.get("title", ""),
+                    "href":  res.get("url", res.get("href", "")),
+                    "body":  res.get("content", res.get("snippet", ""))[:250],
+                }
+                for res in results[:max_results]
+            ]
+    except Exception as e:
+        return []
+
+
+def _verify_single_claim(claim: str) -> dict:
+    search_results = []
+    all_urls = []
+
+    for query in [claim, f"fact check {claim}", f"is it true that {claim}"]:
+        results = _search(query, max_results=3)
+        for r in results:
+            search_results.append(
+                f"Source: {r['href']}\nTitle: {r['title']}\n{r['body']}"
+            )
+            all_urls.append(r["href"])
+
+    if not search_results:
+        return {
+            "claim":      claim,
+            "verdict":    "INCONCLUSIVE",
+            "confidence": 0.0,
+            "reasoning":  "No search results found.",
+            "source":     "",
+        }
+
+    try:
+        resp = _client.chat.completions.create(
+            model=config.GROQ_TEXT_MODEL,
+            max_tokens=200,
+            messages=[{
+                "role": "user",
+                "content": VERIFY_PROMPT.format(
+                    claim=claim,
+                    results="\n\n".join(search_results[:6]),
+                ),
+            }],
+        )
+        raw = resp.choices[0].message.content or ""
+        lines = {
+            line.split(":")[0].strip(): ":".join(line.split(":")[1:]).strip()
+            for line in raw.splitlines() if ":" in line
+        }
+        return {
+            "claim":      claim,
+            "verdict":    lines.get("VERDICT", "INCONCLUSIVE"),
+            "confidence": _safe_float(lines.get("CONFIDENCE", "0.5")),
+            "reasoning":  lines.get("REASONING", ""),
+            "source":     all_urls[0] if all_urls else "",
+        }
+    except Exception as e:
+        return {
+            "claim":      claim,
+            "verdict":    "INCONCLUSIVE",
+            "confidence": 0.0,
+            "reasoning":  f"Groq reasoning failed: {e}",
+            "source":     "",
+        }
 
 VERIFY_PROMPT = """You are a strict fact-checker working for a reputable news organization.
 A claim has been made. Search results have been gathered from the web.
@@ -56,7 +138,6 @@ def claim_verifier_agent(state: PipelineState) -> PipelineState:
         return state
 
     # Score based on how many claims were contradicted
-    # Replace the scoring section with this
     total = len(verification_results)
     contradiction_count = sum(1 for r in verification_results if r["verdict"] == "CONTRADICTED")
     inconclusive_count  = sum(1 for r in verification_results if r["verdict"] == "INCONCLUSIVE")
@@ -79,7 +160,6 @@ def claim_verifier_agent(state: PipelineState) -> PipelineState:
     )
 
     # Store as a signal the synthesis agent can use
- # Change _claim_verify_signal to claim_verify_signal everywhere
     state["claim_verify_signal"] = AgentSignal(
         score=score,
         confidence=0.75,
@@ -96,98 +176,23 @@ def claim_verifier_agent(state: PipelineState) -> PipelineState:
         ]
         state["red_flags"] = existing + new_flags
 
-    return state
-
-
-def _verify_single_claim(claim: str) -> dict:
-    search_results = []
-    all_urls = []
-
-    try:
-        from tavily import TavilyClient
-        client = TavilyClient(api_key=config.TAVILY_API_KEY)
-
-        # Three targeted searches
-        for query in [
-            claim,
-            f"fact check {claim}",
-            f"is it true that {claim}",
-        ]:
-            try:
-                response = client.search(
-                    query=query,
-                    max_results=3,
-                    search_depth="advanced",
-                )
-                for r in response.get("results", []):
-                    search_results.append(
-                        f"Source: {r.get('url', '')}\n"
-                        f"Title: {r.get('title', '')}\n"
-                        f"Content: {r.get('content', '')[:250]}"
-                    )
-                    all_urls.append(r.get("url", ""))
-            except Exception:
-                continue
-
-    except ImportError:
-        return {
-            "claim": claim,
-            "verdict": "INCONCLUSIVE",
-            "confidence": 0.0,
-            "reasoning": "tavily-python not installed.",
-            "source": "",
-        }
-    except Exception as e:
-        return {
-            "claim": claim,
-            "verdict": "INCONCLUSIVE",
-            "confidence": 0.0,
-            "reasoning": f"Search failed: {e}",
-            "source": "",
-        }
-
-    if not search_results:
-        return {
-            "claim": claim,
-            "verdict": "INCONCLUSIVE",
-            "confidence": 0.0,
-            "reasoning": "No search results found.",
-            "source": "",
-        }
-
-    try:
-        resp = _client.chat.completions.create(
-            model=config.GROQ_TEXT_MODEL,
-            max_tokens=200,
-            messages=[{
-                "role": "user",
-                "content": VERIFY_PROMPT.format(
-                    claim=claim,
-                    results="\n\n".join(search_results[:6]),
-                ),
-            }],
+    if not verification_results:
+        state["claim_verify_signal"] = AgentSignal(
+            score=0.3,
+            confidence=0.40,
+            details="All claims were inconclusive — no search results returned.",
+            sources=[],
         )
-        raw = resp.choices[0].message.content or ""
-        lines = {
-            line.split(":")[0].strip(): ":".join(line.split(":")[1:]).strip()
-            for line in raw.splitlines() if ":" in line
-        }
+        return state
 
-        return {
-            "claim":      claim,
-            "verdict":    lines.get("VERDICT", "INCONCLUSIVE"),
-            "confidence": _safe_float(lines.get("CONFIDENCE", "0.5")),
-            "reasoning":  lines.get("REASONING", ""),
-            "source":     all_urls[0] if all_urls else "",
-        }
-    except Exception as e:
-        return {
-            "claim": claim,
-            "verdict": "INCONCLUSIVE",
-            "confidence": 0.0,
-            "reasoning": f"Groq reasoning failed: {e}",
-            "source": "",
-        }
+    state["claim_verify_signal"] = AgentSignal(
+        score=score,
+        confidence=0.75,
+        details=details,
+        sources=[r["source"] for r in verification_results if r.get("source")],
+    )
+
+    return state
 
 def _safe_float(val: str) -> float:
     try:
