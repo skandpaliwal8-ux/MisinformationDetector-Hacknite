@@ -191,7 +191,6 @@ async def _run_job(job_id: str, raw_input: str):
     _emit("triage", "running")
 
     try:
-        # Run the blocking LangGraph pipeline in a thread pool
         loop = asyncio.get_event_loop()
         state = await loop.run_in_executor(None, run_pipeline, raw_input)
 
@@ -202,11 +201,16 @@ async def _run_job(job_id: str, raw_input: str):
         _emit("ai_text",        "done", _signal_detail(state, "ai_text_signal"))
         _emit("synthesis",      "done", f"Verdict: {state.get('verdict')} ({state.get('confidence_score')}%)")
 
+        # Store BEFORE emitting done so polling always finds the result
         _store_verdict(job_id, state)
         _update_status(job_id, "done", "Analysis complete")
 
         if queue:
-            queue.put_nowait({"type": "done", "verdict": state.get("verdict"), "confidence": state.get("confidence_score")})
+            queue.put_nowait({
+                "type":       "done",
+                "verdict":    state.get("verdict"),
+                "confidence": state.get("confidence_score"),
+            })
 
     except Exception as e:
         _update_status(job_id, "error", str(e))
@@ -214,7 +218,6 @@ async def _run_job(job_id: str, raw_input: str):
             queue.put_nowait({"type": "error", "message": str(e)})
     finally:
         _sse_queues.pop(job_id, None)
-
 
 def _signal_detail(state, key: str) -> str:
     sig = state.get(key)
@@ -240,7 +243,6 @@ def _store_verdict(job_id: str, state):
         if sig and sig.get("sources"):
             all_sources.extend(sig["sources"])
 
-    # Deduplicate and filter empty
     sources = list(dict.fromkeys(filter(None, all_sources)))
 
     with sqlite3.connect(DB_PATH) as conn:
@@ -256,10 +258,14 @@ def _store_verdict(job_id: str, state):
                 state.get("verdict"),
                 state.get("confidence_score"),
                 state.get("summary", ""),
-                json.dumps(state.get("red_flags", [])),
-                json.dumps(state.get("timeline", [])),
+                json.dumps(state.get("red_flags") or []),
+                json.dumps(state.get("timeline") or []),
                 json.dumps(sources),
-                json.dumps({k: str(v) for k, v in state.items() if k != "image_bytes"}),
+                json.dumps({
+                    k: str(v)
+                    for k, v in state.items()
+                    if k != "image_bytes"
+                }),
                 datetime.utcnow().isoformat(),
             ),
         )
