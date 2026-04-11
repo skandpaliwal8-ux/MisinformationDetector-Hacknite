@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Is This News Real?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #111118;
+      --border:    #1e1e2e;
+      --text:      #e8e8f0;
+      --muted:     #6b6b85;
+      --accent:    #7c6af7;
+      --accent2:   #f76a8a;
+      --real:      #3dd68c;
+      --fake:      #f76a6a;
+      --misleading:#f7a96a;
+      --uncertain: #f7d76a;
+      --mono:      'DM Mono', monospace;
+      --display:   'Syne', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--display);
+      font-size: 13px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 0;
+      width: 60px; height: 2px;
+      background: var(--accent);
+    }
+
+    .logo {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .header-sub {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-top: 1px;
+    }
+
+    /* ── Manual input ── */
+    .input-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .input-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-field {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+    }
+
+    .input-field::placeholder {
+      color: var(--muted);
+    }
+
+    .btn-analyze {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-family: var(--display);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn-analyze:hover { opacity: 0.85; }
+    .btn-analyze:active { transform: scale(0.97); }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Input preview ── */
+    .input-preview {
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: none;
+    }
+
+    .input-preview.visible { display: block; }
+
+    .preview-label {
+      font-size: 9px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .preview-text {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text);
+      word-break: break-all;
+      opacity: 0.7;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Agent pipeline ── */
+    .pipeline {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: none;
+    }
+
+    .pipeline.visible { display: block; }
+
+    .pipeline-title {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .agent-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      opacity: 0.35;
+      transition: opacity 0.3s;
+    }
+
+    .agent-row:last-child { border-bottom: none; }
+    .agent-row.active { opacity: 1; }
+    .agent-row.done   { opacity: 0.7; }
+
+    .agent-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    .agent-row.active .agent-dot {
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      animation: pulse 1s infinite;
+    }
+
+    .agent-row.done .agent-dot { background: var(--real); }
+    .agent-row.error .agent-dot { background: var(--fake); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .agent-name {
+      font-size: 11px;
+      font-weight: 600;
+      flex: 1;
+      color: var(--text);
+    }
+
+    .agent-status {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-align: right;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-row.done .agent-status { color: var(--real); }
+    .agent-row.error .agent-status { color: var(--fake); }
+
+    /* ── Loading state ── */
+    .loading-state {
+      padding: 30px 16px;
+      text-align: center;
+      display: none;
+    }
+
+    .loading-state.visible { display: block; }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+    }
+
+    /* ── Verdict card ── */
+    .verdict-card {
+      padding: 16px;
+      display: none;
+    }
+
+    .verdict-card.visible { display: block; }
+
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .verdict-badge.REAL        { background: rgba(61,214,140,0.12); color: var(--real);      border: 1px solid rgba(61,214,140,0.25); }
+    .verdict-badge.FAKE        { background: rgba(247,106,106,0.12); color: var(--fake);      border: 1px solid rgba(247,106,106,0.25); }
+    .verdict-badge.MISLEADING  { background: rgba(247,169,106,0.12); color: var(--misleading); border: 1px solid rgba(247,169,106,0.25); }
+    .verdict-badge.UNCERTAIN   { background: rgba(247,215,106,0.12); color: var(--uncertain); border: 1px solid rgba(247,215,106,0.25); }
+
+    .verdict-label { font-size: 20px; font-weight: 800; }
+
+    .confidence-ring {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .confidence-num {
+      font-size: 16px;
+      font-weight: 800;
+      font-family: var(--mono);
+    }
+
+    .confidence-label {
+      font-size: 8px;
+      font-family: var(--mono);
+      opacity: 0.6;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── Summary ── */
+    .summary-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .block-label {
+      font-size: 9px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .summary-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
+      opacity: 0.85;
+    }
+
+    /* ── Red flags ── */
+    .flags-block {
+      background: rgba(247,106,106,0.06);
+      border: 1px solid rgba(247,106,106,0.15);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .flags-block.visible { display: block; }
+
+    .flag-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 4px 0;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--fake);
+      opacity: 0.9;
+    }
+
+    .flag-icon { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Sources ── */
+    .sources-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .sources-block.visible { display: block; }
+
+    .source-link {
+      display: block;
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--accent);
+      text-decoration: none;
+      padding: 3px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .source-link:hover { opacity: 1; text-decoration: underline; }
+
+    /* ── New analysis button ── */
+    .btn-new {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--muted);
+      font-family: var(--display);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: border-color 0.2s, color 0.2s;
+      text-transform: uppercase;
+    }
+
+    .btn-new:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Error state ── */
+    .error-state {
+      padding: 20px 16px;
+      text-align: center;
+      display: none;
+    }
+
+    .error-state.visible { display: block; }
+
+    .error-icon { font-size: 28px; margin-bottom: 10px; }
+
+    .error-msg {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--fake);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Idle state ── */
+    .idle-state {
+      padding: 30px 16px;
+      text-align: center;
+    }
+
+    .idle-icon { font-size: 32px; margin-bottom: 12px; }
+
+    .idle-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .idle-sub {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .hint-list {
+      text-align: left;
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .hint-item {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      padding: 4px 0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .hint-key {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* ── Input type badge ── */
+    .type-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-family: var(--mono);
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(124,106,247,0.15);
+      color: var(--accent);
+      border: 1px solid rgba(124,106,247,0.25);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">🔍</div>
+    <div>
+      <div class="header-title">Is This News Real?</div>
+      <div class="header-sub">Multi-agent fact checker</div>
+    </div>
+  </div>
+
+  <!-- Manual input -->
+  <div class="input-section">
+    <div class="input-label">Paste URL or claim</div>
+    <div class="input-row">
+      <input
+        type="text"
+        id="manualInput"
+        class="input-field"
+        placeholder="Image URL, article URL, or text claim..."
+      />
+      <button class="btn-analyze" id="analyzeBtn">Check</button>
+    </div>
+  </div>
+
+  <!-- Input preview -->
+  <div class="input-preview" id="inputPreview">
+    <div class="preview-label">Analyzing</div>
+    <div class="preview-text" id="previewText"></div>
+  </div>
+
+  <!-- Agent pipeline progress -->
+  <div class="pipeline" id="pipeline">
+    <div class="pipeline-title">Agent pipeline</div>
+    <div class="agent-row" id="agent-triage">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Triage</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-forensics">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Image Forensics</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-vision">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Visual Analysis</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-claims">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Claim Extraction</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-claim_verifier">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Claim Verifier</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-fact_check">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Fact Check</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-reverse_search">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Reverse Search</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-ai_text">
+      <div class="agent-dot"></div>
+      <div class="agent-name">AI Text Detection</div>
+      <div class="agent-status">waiting</div>
+    </div>
+    <div class="agent-row" id="agent-synthesis">
+      <div class="agent-dot"></div>
+      <div class="agent-name">Synthesis</div>
+      <div class="agent-status">waiting</div>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Submitting for analysis...</div>
+  </div>
+
+  <!-- Verdict card -->
+  <div class="verdict-card" id="verdictCard">
+    <div class="type-badge" id="typeBadge">text claim</div>
+    <div class="verdict-badge" id="verdictBadge">
+      <span class="verdict-label" id="verdictLabel">—</span>
+      <div class="confidence-ring">
+        <span class="confidence-num" id="confidenceNum">—</span>
+        <span class="confidence-label">confidence</span>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="block-label">Analysis Summary</div>
+      <div class="summary-text" id="summaryText">—</div>
+    </div>
+
+    <div class="flags-block" id="flagsBlock">
+      <div class="block-label">⚠ Red Flags</div>
+      <div id="flagsList"></div>
+    </div>
+
+    <div class="sources-block" id="sourcesBlock">
+      <div class="block-label">Sources</div>
+      <div id="sourcesList"></div>
+    </div>
+
+    <button class="btn-new" id="newAnalysisBtn">+ New Analysis</button>
+  </div>
+
+  <!-- Error state -->
+  <div class="error-state" id="errorState">
+    <div class="error-icon">⚠</div>
+    <div class="error-msg" id="errorMsg">Something went wrong.</div>
+    <button class="btn-new" id="retryBtn">Try Again</button>
+  </div>
+
+  <!-- Idle state -->
+  <div class="idle-state" id="idleState">
+    <div class="idle-icon">🧠</div>
+    <div class="idle-title">Multi-Agent Fact Checker</div>
+    <div class="idle-sub">Paste a URL or claim above, or right-click anything on the page.</div>
+    <div class="hint-list">
+      <div class="hint-item"><span class="hint-key">Image</span> right-click → fact-check image</div>
+      <div class="hint-item"><span class="hint-key">Text</span> select → right-click → fact-check</div>
+      <div class="hint-item"><span class="hint-key">Article</span> paste URL above</div>
+      <div class="hint-item"><span class="hint-key">Claim</span> paste text above</div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
