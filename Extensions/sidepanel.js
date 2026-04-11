@@ -1,160 +1,116 @@
 const API_BASE = "http://localhost:8000/api/v1";
 const POLL_INTERVAL_MS = 1500;
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let pollTimer = null;
+let pollTimer    = null;
 let currentJobId = null;
-let sseSource = null;
+let sseSource    = null;
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 
-const screens = {
-  idle:     $("idleState"),
-  loading:  $("loadingState"),
-  pipeline: $("pipeline"),
-  verdict:  $("verdictCard"),
-  error:    $("errorState"),
-};
+const SCREENS = ["idleState", "loadingState", "verdictCard", "errorState"];
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+function showOnly(...visible) {
+  SCREENS.forEach((id) => {
+    const el = $(id);
+    const show = visible.includes(id);
+    el.style.display = show ? "" : "none";
+    el.classList.toggle("visible", show);
+  });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
-  showScreen("idle");
+  showOnly("idleState");
   setupListeners();
-  // Check if background already submitted something
-  chrome.storage.session.get(["currentJobId", "status", "input", "showManual"], (data) => {
+
+  chrome.storage.session.get(["currentJobId", "status", "input", "errorMessage"], (data) => {
     if (data.currentJobId) {
       startTracking(data.currentJobId, data.input || "");
     } else if (data.status === "submitting") {
-      showLoading("Submitting...");
+      showLoading("Submitting…");
     } else if (data.status === "error") {
       showError(data.errorMessage || "Unknown error");
     }
   });
 });
 
-// Watch for changes from background.js
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "session") return;
-
   if (changes.currentJobId?.newValue) {
-    const input = changes.input?.newValue || "";
-    startTracking(changes.currentJobId.newValue, input);
+    startTracking(changes.currentJobId.newValue, changes.input?.newValue || "");
   }
-
-  if (changes.status?.newValue === "submitting") {
-    showLoading("Submitting for analysis...");
-  }
-
-  if (changes.status?.newValue === "error") {
-    showError(changes.errorMessage?.newValue || "Unknown error");
-  }
+  if (changes.status?.newValue === "submitting") showLoading("Submitting…");
+  if (changes.status?.newValue === "error") showError(changes.errorMessage?.newValue || "Error");
 });
 
-// ── UI helpers ────────────────────────────────────────────────────────────────
-
-function showScreen(name) {
-  Object.entries(screens).forEach(([key, el]) => {
-    el.classList.toggle("visible", key === name);
-    el.style.display = key === name ? "" : "none";
-  });
-}
-
-function showLoading(text = "Analyzing...") {
+function showLoading(text = "Running analysis…") {
   $("loadingText").textContent = text;
-  showScreen("loading");
-  $("pipeline").style.display = "none";
-  $("pipeline").classList.remove("visible");
-  $("inputPreview").style.display = "none";
+  $("analyzingStrip").classList.remove("visible");
+  $("analyzingStrip").style.display = "none";
+  showOnly("loadingState");
 }
 
-function showPipeline(input) {
-  // Show input preview
-  $("inputPreview").classList.add("visible");
-  $("inputPreview").style.display = "block";
-  $("previewText").textContent = input.length > 80 ? input.slice(0, 77) + "..." : input;
-
-  // Reset all agent rows
-  document.querySelectorAll(".agent-row").forEach((row) => {
-    row.classList.remove("active", "done", "error");
-    row.querySelector(".agent-status").textContent = "waiting";
-  });
-
-  // Show pipeline, hide others
-  screens.loading.style.display = "none";
-  screens.idle.style.display = "none";
-  screens.verdict.style.display = "none";
-  screens.error.style.display = "none";
-  $("pipeline").classList.add("visible");
-  $("pipeline").style.display = "block";
-
-  // Activate triage immediately
-  setAgentState("triage", "active", "running");
-}
-
-function setAgentState(agentName, state, detail = "") {
-  const row = $(`agent-${agentName}`);
-  if (!row) return;
-  row.classList.remove("active", "done", "error");
-  row.classList.add(state);
-  if (detail) {
-    row.querySelector(".agent-status").textContent =
-      detail.length > 22 ? detail.slice(0, 20) + "…" : detail;
-  }
+function showAnalyzingStrip(input) {
+  $("analyzingStrip").classList.add("visible");
+  $("analyzingStrip").style.display = "flex";
+  $("stripText").textContent = input.length > 70 ? input.slice(0, 67) + "…" : input;
 }
 
 function showError(msg) {
   $("errorMsg").textContent = msg;
-  showScreen("error");
-  $("pipeline").style.display = "none";
-  $("inputPreview").style.display = "none";
+  $("analyzingStrip").style.display = "none";
+  showOnly("errorState");
 }
 
 function showVerdict(data) {
-  // Hide pipeline, show verdict
-  $("pipeline").style.display = "none";
-  $("inputPreview").style.display = "none";
-  showScreen("verdict");
+  $("analyzingStrip").style.display = "none";
+  showOnly("verdictCard");
 
   const verdict = data.verdict || "UNCERTAIN";
-  const badge = $("verdictBadge");
-  badge.className = `verdict-badge ${verdict}`;
-  $("verdictLabel").textContent = verdict;
-  $("confidenceNum").textContent = `${Math.round(data.confidence_score || 0)}%`;
-  $("summaryText").textContent = data.summary || "No summary available.";
-  $("typeBadge").textContent = (data.input_type || "unknown").replace("_", " ");
 
-  // Red flags
+  const banner = $("verdictBanner");
+  banner.className = `verdict-banner ${verdict}`;
+
+  const headline = $("verdictHeadline");
+  headline.className = `verdict-headline ${verdict}`;
+  headline.textContent = verdict.charAt(0) + verdict.slice(1).toLowerCase();
+
+  $("confidenceNum").textContent = Math.round(data.confidence_score || 0);
+  $("typeLabel").textContent = (data.input_type || "unknown").replace(/_/g, " ");
+
+  $("summaryText").textContent = data.summary || "No summary available.";
+
   const flags = data.red_flags || [];
   if (flags.length > 0) {
-    $("flagsBlock").classList.add("visible");
+    $("flagsSection").classList.add("visible");
+    $("flagsSection").style.display = "block";
     $("flagsList").innerHTML = flags
-      .map((f) => `<div class="flag-item"><span class="flag-icon">▸</span><span>${f}</span></div>`)
+      .map((f) => `<div class="flag-item">${f}</div>`)
       .join("");
   } else {
-    $("flagsBlock").classList.remove("visible");
+    $("flagsSection").classList.remove("visible");
+    $("flagsSection").style.display = "none";
   }
 
-  // Sources
-  const sources = data.sources || [];
+  const sources = (data.sources || []).filter(Boolean);
   if (sources.length > 0) {
-    $("sourcesBlock").classList.add("visible");
-    $("sourcesList").innerHTML = sources
-      .filter(Boolean)
-      .map((s) => `<a class="source-link" href="${s}" target="_blank">${s}</a>`)
-      .join("");
+    $("sourcesSection").classList.add("visible");
+    $("sourcesSection").style.display = "block";
+    $("sourcesList").innerHTML = sources.map((s) => `
+      <a class="source-link" href="${s}" target="_blank">
+        <svg viewBox="0 0 16 16"><path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9"/><polyline points="10,2 14,2 14,6"/><line x1="14" y1="2" x2="7" y2="9"/></svg>
+        <span>${s}</span>
+      </a>`).join("");
   } else {
-    $("sourcesBlock").classList.remove("visible");
+    $("sourcesSection").classList.remove("visible");
+    $("sourcesSection").style.display = "none";
   }
 }
 
-// ── Tracking ──────────────────────────────────────────────────────────────────
-
 function startTracking(jobId, input) {
   currentJobId = jobId;
-  stopTracking(); // clear any previous
-  showPipeline(input);
+  stopTracking();
+  showLoading("Running analysis…");
+  showAnalyzingStrip(input);
   connectSSE(jobId);
   startPolling(jobId);
 }
@@ -164,69 +120,19 @@ function stopTracking() {
   if (sseSource) { sseSource.close(); sseSource = null; }
 }
 
-// ── SSE — live agent updates ──────────────────────────────────────────────────
-
 function connectSSE(jobId) {
   try {
     sseSource = new EventSource(`${API_BASE}/stream/${jobId}`);
-
     sseSource.onmessage = (e) => {
       try {
         const event = JSON.parse(e.data);
-        handleSSEEvent(event);
+        if (event.type === "done")  { stopTracking(); fetchVerdict(jobId); }
+        if (event.type === "error") { stopTracking(); showError(event.message || "Pipeline error"); }
       } catch (_) {}
     };
-
-    sseSource.onerror = () => {
-      sseSource.close();
-      sseSource = null;
-    };
-  } catch (_) {
-    // SSE failed — polling will handle it
-  }
+    sseSource.onerror = () => { sseSource?.close(); sseSource = null; };
+  } catch (_) {}
 }
-
-function handleSSEEvent(event) {
-  if (event.type === "agent_update") {
-    const { agent, status, detail } = event;
-    const agentKey = agent.toLowerCase().replace(/\s+/g, "_");
-
-    // Mark previous agent done
-    const agentOrder = [
-      "triage", "forensics", "vision", "claims",
-      "claim_verifier", "fact_check", "reverse_search", "ai_text", "synthesis",
-    ];
-    const idx = agentOrder.indexOf(agentKey);
-    if (idx > 0) setAgentState(agentOrder[idx - 1], "done", "✓");
-
-    if (status === "running") {
-      setAgentState(agentKey, "active", "running...");
-    } else if (status === "done") {
-      setAgentState(agentKey, "done", detail || "✓");
-    } else if (status === "error") {
-      setAgentState(agentKey, "error", "failed");
-    }
-  }
-
-  if (event.type === "done") {
-    // Mark all agents done
-    document.querySelectorAll(".agent-row:not(.error)").forEach((row) => {
-      if (!row.classList.contains("done")) {
-        row.classList.add("done");
-        row.querySelector(".agent-status").textContent = "✓";
-      }
-    });
-    stopTracking();
-    fetchVerdict(currentJobId);
-  }
-
-  if (event.type === "error") {
-    stopTracking();
-    showError(event.message || "Pipeline error");
-  }
-}
-
-// ── Polling — fallback ────────────────────────────────────────────────────────
 
 function startPolling(jobId) {
   pollTimer = setInterval(async () => {
@@ -234,17 +140,9 @@ function startPolling(jobId) {
       const r = await fetch(`${API_BASE}/results/${jobId}`);
       if (!r.ok) return;
       const data = await r.json();
-
-      if (data.status === "done") {
-        stopTracking();
-        showVerdict(data);
-      } else if (data.status === "error") {
-        stopTracking();
-        showError(data.summary || "Analysis failed");
-      }
-    } catch (err) {
-      // Backend not reachable — show error after a few tries
-    }
+      if (data.status === "done")  { stopTracking(); showVerdict(data); }
+      else if (data.status === "error") { stopTracking(); showError(data.summary || "Analysis failed"); }
+    } catch (_) {}
   }, POLL_INTERVAL_MS);
 }
 
@@ -254,46 +152,37 @@ async function fetchVerdict(jobId) {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (data.status === "done") showVerdict(data);
-    else if (data.status === "error") showError(data.summary || "Analysis failed");
+    else if (data.status === "error") showError(data.summary || "Failed");
   } catch (err) {
     showError("Could not fetch results: " + err.message);
   }
 }
 
-// ── Manual input ──────────────────────────────────────────────────────────────
-
 function setupListeners() {
-  $("analyzeBtn").addEventListener("click", handleManualSubmit);
-
-  $("manualInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") handleManualSubmit();
-  });
-
-  $("newAnalysisBtn").addEventListener("click", resetToIdle);
-  $("retryBtn").addEventListener("click", resetToIdle);
+  $("analyzeBtn").addEventListener("click", handleSubmit);
+  $("manualInput").addEventListener("keydown", (e) => { if (e.key === "Enter") handleSubmit(); });
+  $("newAnalysisBtn").addEventListener("click", reset);
+  $("retryBtn").addEventListener("click", reset);
 }
 
-async function handleManualSubmit() {
+async function handleSubmit() {
   const input = $("manualInput").value.trim();
   if (!input) return;
-
   $("analyzeBtn").disabled = true;
-  showLoading("Submitting for analysis...");
+  showLoading("Submitting…");
 
   chrome.runtime.sendMessage({ type: "SUBMIT_INPUT", input }, (response) => {
     $("analyzeBtn").disabled = false;
-    if (!response?.ok) {
-      showError("Failed to submit. Is the backend running?");
-    }
+    if (!response?.ok) showError("Failed to submit. Is the backend running on localhost:8000?");
   });
 }
 
-function resetToIdle() {
+function reset() {
   stopTracking();
   currentJobId = null;
   chrome.storage.session.clear();
   $("manualInput").value = "";
-  $("inputPreview").classList.remove("visible");
-  $("inputPreview").style.display = "none";
-  showScreen("idle");
+  $("analyzingStrip").classList.remove("visible");
+  $("analyzingStrip").style.display = "none";
+  showOnly("idleState");
 }

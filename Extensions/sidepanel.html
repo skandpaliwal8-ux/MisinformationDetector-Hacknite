@@ -3,643 +3,752 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Is This News Real?</title>
+  <title>Verify — News Fact Checker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg:        #0a0a0f;
-      --surface:   #111118;
-      --border:    #1e1e2e;
-      --text:      #e8e8f0;
-      --muted:     #6b6b85;
-      --accent:    #7c6af7;
-      --accent2:   #f76a8a;
-      --real:      #3dd68c;
-      --fake:      #f76a6a;
-      --misleading:#f7a96a;
-      --uncertain: #f7d76a;
-      --mono:      'DM Mono', monospace;
-      --display:   'Syne', sans-serif;
+      --bg:        #faf8f5;
+      --surface:   #ffffff;
+      --surface2:  #f3f0eb;
+      --border:    #e8e2d9;
+      --border2:   #d4cdc0;
+      --ink:       #1c1a17;
+      --ink2:      #5c5650;
+      --ink3:      #9c9590;
+      --red:       #d44b3a;
+      --red-bg:    #fdf2f0;
+      --red-light: #fbe9e6;
+      --green:     #2a7d52;
+      --green-bg:  #f0f9f4;
+      --amber:     #b06820;
+      --amber-bg:  #fdf5eb;
+      --grey-bg:   #f5f4f1;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+
+      --sans: 'DM Sans', system-ui, sans-serif;
+      --serif: 'DM Serif Display', Georgia, serif;
+
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background: var(--bg);
-      color: var(--text);
-      font-family: var(--display);
+      color: var(--ink);
+      font-family: var(--sans);
       font-size: 13px;
       min-height: 100vh;
-      overflow-x: hidden;
+      line-height: 1.5;
     }
 
-    /* ── Header ── */
-    .header {
-      padding: 18px 16px 14px;
+    /* ── Masthead ── */
+    .masthead {
+      padding: 16px 16px 14px;
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
+    }
+
+    .masthead-inner {
       display: flex;
       align-items: center;
-      gap: 10px;
-      position: relative;
+      justify-content: space-between;
+      gap: 8px;
     }
 
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -1px; left: 0;
-      width: 60px; height: 2px;
-      background: var(--accent);
+    .masthead-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .logo {
-      width: 28px; height: 28px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
+    .masthead-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--ink);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
     }
 
-    .header-title {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--text);
+    .masthead-icon svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: #fff;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
-    .header-sub {
-      font-size: 10px;
-      color: var(--muted);
-      font-family: var(--mono);
-      margin-top: 1px;
+    .masthead-title {
+      font-family: var(--serif);
+      font-size: 20px;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      line-height: 1;
     }
 
-    /* ── Manual input ── */
+    .masthead-date {
+      font-size: 11px;
+      color: var(--ink3);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+    }
+
+    .masthead-tagline {
+      font-size: 11px;
+      color: var(--ink3);
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Input ── */
     .input-section {
       padding: 14px 16px;
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
     }
 
     .input-label {
-      font-size: 10px;
-      font-family: var(--mono);
-      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink2);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       margin-bottom: 8px;
     }
 
-    .input-row {
-      display: flex;
-      gap: 8px;
-    }
-
     .input-field {
-      flex: 1;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
       padding: 9px 12px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 11px;
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--ink);
       outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .input-field:focus {
-      border-color: var(--accent);
-    }
-
-    .input-field::placeholder {
-      color: var(--muted);
-    }
-
-    .btn-analyze {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 9px 14px;
-      font-family: var(--display);
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      letter-spacing: 0.04em;
-      transition: opacity 0.2s, transform 0.1s;
-      white-space: nowrap;
-    }
-
-    .btn-analyze:hover { opacity: 0.85; }
-    .btn-analyze:active { transform: scale(0.97); }
-    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* ── Input preview ── */
-    .input-preview {
-      padding: 10px 16px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: none;
-    }
-
-    .input-preview.visible { display: block; }
-
-    .preview-label {
-      font-size: 9px;
-      font-family: var(--mono);
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 4px;
-    }
-
-    .preview-text {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--text);
-      word-break: break-all;
-      opacity: 0.7;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* ── Agent pipeline ── */
-    .pipeline {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
-      display: none;
-    }
-
-    .pipeline.visible { display: block; }
-
-    .pipeline-title {
-      font-size: 10px;
-      font-family: var(--mono);
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
       margin-bottom: 10px;
     }
 
-    .agent-row {
+    .input-field:focus {
+      border-color: var(--ink2);
+      box-shadow: 0 0 0 3px rgba(28,26,23,0.07);
+      background: var(--surface);
+    }
+
+    .input-field::placeholder {
+      color: var(--ink3);
+    }
+
+    .btn-analyze {
+      width: 100%;
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: background 0.2s var(--ease), transform 0.15s var(--spring);
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border);
-      opacity: 0.35;
-      transition: opacity 0.3s;
+      justify-content: center;
+      gap: 6px;
     }
 
-    .agent-row:last-child { border-bottom: none; }
-    .agent-row.active { opacity: 1; }
-    .agent-row.done   { opacity: 0.7; }
+    .btn-analyze:hover  { background: #332f2b; }
+    .btn-analyze:active { transform: scale(0.98); }
+    .btn-analyze:disabled { background: var(--border2); cursor: not-allowed; transform: none; }
 
-    .agent-dot {
+    .btn-analyze svg {
+      width: 14px; height: 14px;
+      fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* ── Analyzing strip ── */
+    .analyzing-strip {
+      display: none;
+      padding: 8px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .analyzing-strip.visible { display: flex; align-items: center; gap: 8px; }
+
+    .strip-dot {
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: var(--border);
+      background: var(--amber);
+      animation: pulse 1.6s infinite;
       flex-shrink: 0;
-      transition: background 0.3s;
     }
-
-    .agent-row.active .agent-dot {
-      background: var(--accent);
-      box-shadow: 0 0 6px var(--accent);
-      animation: pulse 1s infinite;
-    }
-
-    .agent-row.done .agent-dot { background: var(--real); }
-    .agent-row.error .agent-dot { background: var(--fake); }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      0%, 100% { opacity: 0.4; transform: scale(0.8); }
+      50%       { opacity: 1;   transform: scale(1.2); }
     }
 
-    .agent-name {
-      font-size: 11px;
-      font-weight: 600;
-      flex: 1;
-      color: var(--text);
-    }
+    .strip-inner { overflow: hidden; }
 
-    .agent-status {
+    .strip-label {
       font-size: 10px;
-      font-family: var(--mono);
-      color: var(--muted);
-      text-align: right;
-      max-width: 130px;
+      font-weight: 500;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      line-height: 1;
+    }
+
+    .strip-text {
+      font-size: 11px;
+      color: var(--ink2);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      margin-top: 1px;
     }
 
-    .agent-row.done .agent-status { color: var(--real); }
-    .agent-row.error .agent-status { color: var(--fake); }
-
-    /* ── Loading state ── */
+    /* ── Loading ── */
     .loading-state {
-      padding: 30px 16px;
-      text-align: center;
       display: none;
+      padding: 36px 16px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
     }
 
     .loading-state.visible { display: block; }
 
-    .spinner {
+    .loading-spinner {
       width: 32px; height: 32px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
+      border: 2.5px solid var(--border);
+      border-top-color: var(--ink);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin: 0 auto 12px;
+      margin: 0 auto 14px;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .loading-text {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--muted);
+      font-size: 12px;
+      color: var(--ink2);
+      font-weight: 400;
     }
 
     /* ── Verdict card ── */
     .verdict-card {
-      padding: 16px;
       display: none;
+      animation: slide-up 0.35s var(--spring) both;
     }
 
     .verdict-card.visible { display: block; }
 
-    .verdict-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-      width: 100%;
-      justify-content: space-between;
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .verdict-badge.REAL        { background: rgba(61,214,140,0.12); color: var(--real);      border: 1px solid rgba(61,214,140,0.25); }
-    .verdict-badge.FAKE        { background: rgba(247,106,106,0.12); color: var(--fake);      border: 1px solid rgba(247,106,106,0.25); }
-    .verdict-badge.MISLEADING  { background: rgba(247,169,106,0.12); color: var(--misleading); border: 1px solid rgba(247,169,106,0.25); }
-    .verdict-badge.UNCERTAIN   { background: rgba(247,215,106,0.12); color: var(--uncertain); border: 1px solid rgba(247,215,106,0.25); }
+    /* Verdict banner */
+    .verdict-banner {
+      padding: 16px 16px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
 
-    .verdict-label { font-size: 20px; font-weight: 800; }
+    .verdict-banner.REAL        { background: var(--green-bg); border-left: 3px solid var(--green); }
+    .verdict-banner.FAKE        { background: var(--red-bg);   border-left: 3px solid var(--red); }
+    .verdict-banner.MISLEADING  { background: var(--amber-bg); border-left: 3px solid var(--amber); }
+    .verdict-banner.UNCERTAIN   { background: var(--grey-bg);  border-left: 3px solid var(--border2); }
 
-    .confidence-ring {
+    .verdict-eyebrow {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--ink3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 5px;
+    }
+
+    .verdict-headline {
+      font-family: var(--serif);
+      font-size: 36px;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .verdict-headline.REAL       { color: var(--green); }
+    .verdict-headline.FAKE       { color: var(--red); }
+    .verdict-headline.MISLEADING { color: var(--amber); }
+    .verdict-headline.UNCERTAIN  { color: var(--ink2); }
+
+    .verdict-meta {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 2px;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .confidence-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(28,26,23,0.06);
+      border-radius: 999px;
+      padding: 3px 10px 3px 6px;
+    }
+
+    .confidence-pill svg {
+      width: 12px; height: 12px;
+      fill: none; stroke: var(--ink2);
+      stroke-width: 2; stroke-linecap: round;
     }
 
     .confidence-num {
-      font-size: 16px;
-      font-weight: 800;
-      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
     }
 
     .confidence-label {
-      font-size: 8px;
-      font-family: var(--mono);
-      opacity: 0.6;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-size: 11px;
+      color: var(--ink2);
     }
 
-    /* ── Summary ── */
-    .summary-block {
+    .type-pill {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--ink2);
+      background: rgba(28,26,23,0.06);
+      border-radius: 999px;
+      padding: 3px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Sections ── */
+    .section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 12px;
     }
 
-    .block-label {
-      font-size: 9px;
-      font-family: var(--mono);
-      color: var(--muted);
+    .section-header {
+      font-size: 10px;
+      font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      margin-bottom: 6px;
+      color: var(--ink3);
+      margin-bottom: 8px;
     }
 
     .summary-text {
-      font-size: 12px;
-      line-height: 1.6;
-      color: var(--text);
-      opacity: 0.85;
+      font-size: 13px;
+      line-height: 1.75;
+      color: var(--ink);
     }
 
     /* ── Red flags ── */
-    .flags-block {
-      background: rgba(247,106,106,0.06);
-      border: 1px solid rgba(247,106,106,0.15);
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 12px;
+    .flags-section {
       display: none;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--red-light);
     }
 
-    .flags-block.visible { display: block; }
+    .flags-section.visible { display: block; }
+
+    .flags-header {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--red);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .flags-header svg {
+      width: 12px; height: 12px;
+      fill: none; stroke: var(--red);
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+      flex-shrink: 0;
+    }
 
     .flag-item {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      padding: 4px 0;
-      font-size: 11px;
-      line-height: 1.5;
-      color: var(--fake);
-      opacity: 0.9;
+      font-size: 12px;
+      line-height: 1.65;
+      color: var(--ink);
+      padding: 5px 0 5px 14px;
+      position: relative;
+      border-bottom: 1px solid rgba(212,75,58,0.1);
     }
 
-    .flag-icon { flex-shrink: 0; margin-top: 1px; }
+    .flag-item:last-child { border-bottom: none; }
+
+    .flag-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 12px;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--red);
+      opacity: 0.6;
+    }
 
     /* ── Sources ── */
-    .sources-block {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 12px;
+    .sources-section {
       display: none;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
     }
 
-    .sources-block.visible { display: block; }
+    .sources-section.visible { display: block; }
 
     .source-link {
-      display: block;
-      font-size: 10px;
-      font-family: var(--mono);
-      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--ink2);
       text-decoration: none;
-      padding: 3px 0;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      transition: color 0.15s;
+      overflow: hidden;
+    }
+
+    .source-link:last-child { border-bottom: none; }
+
+    .source-link:hover { color: var(--ink); }
+
+    .source-link svg {
+      width: 11px; height: 11px;
+      fill: none; stroke: currentColor;
+      stroke-width: 1.5; stroke-linecap: round;
+      flex-shrink: 0; opacity: 0.6;
+    }
+
+    .source-link span {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      opacity: 0.8;
-      transition: opacity 0.2s;
     }
 
-    .source-link:hover { opacity: 1; text-decoration: underline; }
+    /* ── New analysis ── */
+    .new-section {
+      padding: 14px 16px;
+      background: var(--surface);
+    }
 
-    /* ── New analysis button ── */
     .btn-new {
       width: 100%;
       background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      color: var(--muted);
-      font-family: var(--display);
-      font-size: 11px;
-      font-weight: 600;
+      border: 1.5px solid var(--border2);
+      border-radius: var(--radius-md);
+      padding: 9px 14px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink2);
       cursor: pointer;
-      letter-spacing: 0.04em;
-      transition: border-color 0.2s, color 0.2s;
-      text-transform: uppercase;
+      transition: all 0.2s var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     .btn-new:hover {
-      border-color: var(--accent);
-      color: var(--accent);
+      background: var(--surface2);
+      color: var(--ink);
+      border-color: var(--ink2);
     }
 
-    /* ── Error state ── */
+    .btn-new svg {
+      width: 13px; height: 13px;
+      fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ── Error ── */
     .error-state {
-      padding: 20px 16px;
-      text-align: center;
       display: none;
+      padding: 16px;
+      margin: 12px;
+      background: var(--red-bg);
+      border: 1px solid rgba(212,75,58,0.2);
+      border-radius: var(--radius-lg);
     }
 
     .error-state.visible { display: block; }
 
-    .error-icon { font-size: 28px; margin-bottom: 10px; }
+    .error-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--red);
+      margin-bottom: 5px;
+    }
 
     .error-msg {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--fake);
-      margin-bottom: 14px;
-      line-height: 1.5;
-    }
-
-    /* ── Idle state ── */
-    .idle-state {
-      padding: 30px 16px;
-      text-align: center;
-    }
-
-    .idle-icon { font-size: 32px; margin-bottom: 12px; }
-
-    .idle-title {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .idle-sub {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--muted);
+      font-size: 12px;
+      color: var(--ink);
       line-height: 1.6;
+      margin-bottom: 12px;
     }
 
-    .hint-list {
-      text-align: left;
-      margin-top: 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
+    .btn-retry {
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 7px 14px;
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 500;
+      color: white;
+      cursor: pointer;
+      transition: background 0.15s;
     }
 
-    .hint-item {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--muted);
-      padding: 4px 0;
-      display: flex;
-      gap: 8px;
+    .btn-retry:hover { background: #c04030; }
+
+    /* ── Idle ── */
+    .idle-state {
+      padding: 10px 16px 16px;
     }
 
-    .hint-key {
-      color: var(--accent);
-      flex-shrink: 0;
-    }
-
-    /* ── Input type badge ── */
-    .type-badge {
-      display: inline-block;
-      font-size: 9px;
-      font-family: var(--mono);
-      padding: 2px 7px;
-      border-radius: 4px;
-      background: rgba(124,106,247,0.15);
-      color: var(--accent);
-      border: 1px solid rgba(124,106,247,0.25);
+    .how-to-header {
+      font-size: 10px;
+      font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
+      color: var(--ink3);
       margin-bottom: 10px;
     }
 
-    /* scrollbar */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .how-items {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .how-item {
+      display: flex;
+      gap: 10px;
+      padding: 9px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      align-items: flex-start;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .how-item:hover {
+      background: var(--surface2);
+      border-color: var(--border2);
+    }
+
+    .how-icon {
+      width: 26px; height: 26px;
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .how-icon svg {
+      width: 12px; height: 12px;
+      fill: none; stroke: var(--ink2);
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .how-content { flex: 1; min-width: 0; }
+
+    .how-key {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 1px;
+    }
+
+    .how-val {
+      font-size: 11px;
+      color: var(--ink3);
+      line-height: 1.5;
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="logo">🔍</div>
-    <div>
-      <div class="header-title">Is This News Real?</div>
-      <div class="header-sub">Multi-agent fact checker</div>
+  <!-- Masthead -->
+  <div class="masthead">
+    <div class="masthead-inner">
+      <div class="masthead-brand">
+        <div class="masthead-icon">
+          <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5"/><polyline points="8,5 8,8 10,10"/></svg>
+        </div>
+        <div class="masthead-title">Verify</div>
+      </div>
+      <div class="masthead-date" id="currentDate"></div>
     </div>
+    <div class="masthead-tagline">AI-powered fact checker · multi-agent analysis</div>
   </div>
 
-  <!-- Manual input -->
+  <!-- Input -->
   <div class="input-section">
-    <div class="input-label">Paste URL or claim</div>
-    <div class="input-row">
-      <input
-        type="text"
-        id="manualInput"
-        class="input-field"
-        placeholder="Image URL, article URL, or text claim..."
-      />
-      <button class="btn-analyze" id="analyzeBtn">Check</button>
+    <div class="input-label">Submit for analysis</div>
+    <input
+      type="text"
+      id="manualInput"
+      class="input-field"
+      placeholder="Paste image URL, article URL, or a claim…"
+    />
+    <button class="btn-analyze" id="analyzeBtn">
+      <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+      Analyze
+    </button>
+  </div>
+
+  <!-- Analyzing strip -->
+  <div class="analyzing-strip" id="analyzingStrip">
+    <div class="strip-dot"></div>
+    <div class="strip-inner">
+      <div class="strip-label">Analyzing</div>
+      <div class="strip-text" id="stripText"></div>
     </div>
   </div>
 
-  <!-- Input preview -->
-  <div class="input-preview" id="inputPreview">
-    <div class="preview-label">Analyzing</div>
-    <div class="preview-text" id="previewText"></div>
-  </div>
-
-  <!-- Agent pipeline progress -->
-  <div class="pipeline" id="pipeline">
-    <div class="pipeline-title">Agent pipeline</div>
-    <div class="agent-row" id="agent-triage">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Triage</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-forensics">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Image Forensics</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-vision">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Visual Analysis</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-claims">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Claim Extraction</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-claim_verifier">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Claim Verifier</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-fact_check">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Fact Check</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-reverse_search">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Reverse Search</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-ai_text">
-      <div class="agent-dot"></div>
-      <div class="agent-name">AI Text Detection</div>
-      <div class="agent-status">waiting</div>
-    </div>
-    <div class="agent-row" id="agent-synthesis">
-      <div class="agent-dot"></div>
-      <div class="agent-name">Synthesis</div>
-      <div class="agent-status">waiting</div>
-    </div>
-  </div>
-
-  <!-- Loading state -->
+  <!-- Loading -->
   <div class="loading-state" id="loadingState">
-    <div class="spinner"></div>
-    <div class="loading-text" id="loadingText">Submitting for analysis...</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Running analysis…</div>
   </div>
 
-  <!-- Verdict card -->
+  <!-- Verdict -->
   <div class="verdict-card" id="verdictCard">
-    <div class="type-badge" id="typeBadge">text claim</div>
-    <div class="verdict-badge" id="verdictBadge">
-      <span class="verdict-label" id="verdictLabel">—</span>
-      <div class="confidence-ring">
-        <span class="confidence-num" id="confidenceNum">—</span>
-        <span class="confidence-label">confidence</span>
+
+    <div class="verdict-banner" id="verdictBanner">
+      <div class="verdict-eyebrow">Verdict</div>
+      <div class="verdict-headline" id="verdictHeadline">—</div>
+      <div class="verdict-meta">
+        <div class="confidence-pill">
+          <svg viewBox="0 0 16 16"><polyline points="2,10 6,6 10,9 14,4"/></svg>
+          <span class="confidence-num" id="confidenceNum">—</span>
+          <span class="confidence-label">% confidence</span>
+        </div>
+        <div class="type-pill" id="typeLabel">—</div>
       </div>
     </div>
 
-    <div class="summary-block">
-      <div class="block-label">Analysis Summary</div>
+    <div class="section">
+      <div class="section-header">Analysis</div>
       <div class="summary-text" id="summaryText">—</div>
     </div>
 
-    <div class="flags-block" id="flagsBlock">
-      <div class="block-label">⚠ Red Flags</div>
+    <div class="flags-section" id="flagsSection">
+      <div class="flags-header">
+        <svg viewBox="0 0 16 16"><path d="M3 2v12M3 2h8l-2 4 2 4H3"/></svg>
+        Red flags
+      </div>
       <div id="flagsList"></div>
     </div>
 
-    <div class="sources-block" id="sourcesBlock">
-      <div class="block-label">Sources</div>
+    <div class="sources-section" id="sourcesSection">
+      <div class="section-header">Sources</div>
       <div id="sourcesList"></div>
     </div>
 
-    <button class="btn-new" id="newAnalysisBtn">+ New Analysis</button>
+    <div class="new-section">
+      <button class="btn-new" id="newAnalysisBtn">
+        <svg viewBox="0 0 16 16"><polyline points="1,4 1,1 4,1"/><path d="M1,1 a7,7 0 1,1 -0.01,7"/></svg>
+        New analysis
+      </button>
+    </div>
+
   </div>
 
-  <!-- Error state -->
+  <!-- Error -->
   <div class="error-state" id="errorState">
-    <div class="error-icon">⚠</div>
+    <div class="error-label">Something went wrong</div>
     <div class="error-msg" id="errorMsg">Something went wrong.</div>
-    <button class="btn-new" id="retryBtn">Try Again</button>
+    <button class="btn-retry" id="retryBtn">Try again</button>
   </div>
 
-  <!-- Idle state -->
+  <!-- Idle -->
   <div class="idle-state" id="idleState">
-    <div class="idle-icon">🧠</div>
-    <div class="idle-title">Multi-Agent Fact Checker</div>
-    <div class="idle-sub">Paste a URL or claim above, or right-click anything on the page.</div>
-    <div class="hint-list">
-      <div class="hint-item"><span class="hint-key">Image</span> right-click → fact-check image</div>
-      <div class="hint-item"><span class="hint-key">Text</span> select → right-click → fact-check</div>
-      <div class="hint-item"><span class="hint-key">Article</span> paste URL above</div>
-      <div class="hint-item"><span class="hint-key">Claim</span> paste text above</div>
+    <div class="how-to-header">How to use</div>
+    <div class="how-items">
+      <div class="how-item">
+        <div class="how-icon">
+          <svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1"/><polyline points="5,8 7,10 11,6"/></svg>
+        </div>
+        <div class="how-content">
+          <div class="how-key">Image</div>
+          <div class="how-val">Right-click any image → Fact-check this image</div>
+        </div>
+      </div>
+      <div class="how-item">
+        <div class="how-icon">
+          <svg viewBox="0 0 16 16"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="9" y2="11"/></svg>
+        </div>
+        <div class="how-content">
+          <div class="how-key">Text</div>
+          <div class="how-val">Select text → right-click → Fact-check selected text</div>
+        </div>
+      </div>
+      <div class="how-item">
+        <div class="how-icon">
+          <svg viewBox="0 0 16 16"><path d="M2,4 h12 a1,1 0 0,1 1,1 v8 a1,1 0 0,1 -1,1 h-12 a1,1 0 0,1 -1,-1 v-8 a1,1 0 0,1 1,-1z"/><polyline points="2,5 8,9 14,5"/></svg>
+        </div>
+        <div class="how-content">
+          <div class="how-key">Article</div>
+          <div class="how-val">Paste any article URL in the field above</div>
+        </div>
+      </div>
+      <div class="how-item">
+        <div class="how-icon">
+          <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><line x1="8" y1="6" x2="8" y2="8"/><circle cx="8" cy="10.5" r="0.5" fill="currentColor"/></svg>
+        </div>
+        <div class="how-content">
+          <div class="how-key">Claim</div>
+          <div class="how-val">Paste any claim directly in the field above</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="sidepanel.js"></script>
+  <script>
+    document.getElementById("currentDate").textContent =
+      new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  </script>
 </body>
 </html>
