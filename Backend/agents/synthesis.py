@@ -28,38 +28,32 @@ End with a clear recommendation: "We recommend treating this as [real/unreliable
 """
 
 
+DISPLAY_NAMES = {
+    "ela_signal":            "ELA Forensics",
+    "cnndetect_signal":      "CNNDetect",
+    "c2pa_signal":           "C2PA Provenance",
+    "groq_vision_signal":    "Visual Analysis",
+    "reverse_search_signal": "Reverse Search",
+    "fact_check_signal":     "Fact Check",
+    "ai_text_signal":        "AI Text Detection",
+    "claim_verify_signal":   "Claim Verification",
+}
+
+
 def synthesis_agent(state: PipelineState) -> PipelineState:
-    signals_map = {
-        "ELA Forensics":      state.get("ela_signal"),
-        "CNNDetect":          state.get("cnndetect_signal"),
-        "C2PA Provenance":    state.get("c2pa_signal"),
-        "Visual Analysis":    state.get("groq_vision_signal"),
-        "Reverse Search":     state.get("reverse_search_signal"),
-        "Fact Check":         state.get("fact_check_signal"),
-        "AI Text Detection":  state.get("ai_text_signal"),
-        "Claim Verification": state.get("claim_verify_signal"),
-    }
-
-    weight_map = {
-        "ELA Forensics":      0.08,
-        "CNNDetect":          0.08,
-        "C2PA Provenance":    0.04,
-        "Visual Analysis":    0.20,
-        "Reverse Search":     0.05,
-        "Fact Check":         0.25,   # increased
-        "AI Text Detection":  0.05,   # reduced — writing style irrelevant to truth
-        "Claim Verification": 0.25,   # increased — most important signal
-    }
-
     weighted_sum = 0.0
     total_weight = 0.0
     signals_text = []
 
-    for name, signal in signals_map.items():
-        if signal and signal["confidence"] > 0:
-            w = weight_map.get(name, 0.1) * signal["confidence"]
+    for signal_key, weight in config.WEIGHTS.items():
+        signal = state.get(signal_key)
+        if signal and signal.get("confidence", 0) > 0:
+            # Effective weight is the configured weight scaled by agent confidence
+            w = weight * signal["confidence"]
             weighted_sum += signal["score"] * w
             total_weight += w
+            
+            name = DISPLAY_NAMES.get(signal_key, signal_key)
             signals_text.append(
                 f"  [{name}] score={signal['score']:.2f} "
                 f"confidence={signal['confidence']:.2f} — {signal['details'][:120]}"
