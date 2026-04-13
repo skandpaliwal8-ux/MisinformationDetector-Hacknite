@@ -90,7 +90,7 @@ Backend/
 ├── api/
 │   └── routes.py               ← REST endpoints + SSE + SQLite storage
 │
-extension/
+Frontend/
   ├── manifest.json           ← Chrome Manifest V3
   ├── background.js           ← Service worker + context menus
   ├── sidepanel.html          ← Extension UI
