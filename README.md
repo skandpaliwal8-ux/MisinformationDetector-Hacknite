@@ -6,6 +6,8 @@ Submit anything suspicious — get a verdict in seconds.
 Built with LangGraph, Groq, SearXNG, and a Chrome extension frontend.
 Fully FOSS. No paywalls. No vendor lock-in.
 
+This program can only be hosted locally right now. Follow the repo to host it on your own server.
+
 ---
 
 ## What It Does
