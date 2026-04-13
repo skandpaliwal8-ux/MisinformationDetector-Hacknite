@@ -270,18 +270,20 @@ python main.py
 
 **Test an AI-generated image:**
 ```json
-{"input": "https://image.pollinations.ai/prompt/hyperrealistic+dragon+in+new+york"}
+{"input": "https://image.pollinations.ai/prompt/hyperrealistic+dragon+in+new+york.jpg"}
 ```
-
+![AI Generated Image](dragon.png)
+![Result](dragonresult.png)
 **Test a known fake claim:**
 ```json
 {"input": "The COVID-19 vaccine contains microchips installed by Bill Gates"}
 ```
-
+![Fake Claim](vaccine.png)
 **Test a real article:**
 ```json
-{"input": "https://en.wikipedia.org/wiki/Moon_landing_conspiracy_theories"}
+{"input": "https://theonion.com/usha-vance-catches-husband-measuring-her-skull-again/"}
 ```
+![Real Article](article.png)
 ---
 
 ## Known Limitations
