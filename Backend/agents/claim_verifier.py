@@ -97,7 +97,7 @@ def _verify_single_claim(claim: str) -> dict:
 VERIFY_PROMPT = """You are a strict fact-checker working for a reputable news organization.
 A claim has been made. Search results have been gathered from the web.
 Your job is to deliver a clear verdict — do NOT say inconclusive unless there is genuinely zero relevant evidence.
-
+"If the claim is a well-known conspiracy theory or widely debunked myth, mark it CONTRADICTED with high confidence."
 Claim: {claim}
 
 Search results:

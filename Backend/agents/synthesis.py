@@ -61,29 +61,35 @@ def synthesis_agent(state: PipelineState) -> PipelineState:
 
     composite = weighted_sum / total_weight if total_weight > 0 else 0.0
 
-    # --- Override: if claim verification or fact check strongly flags fake, force the verdict ---
+    # --- Override logic: force verdict if specific agents find strong evidence ---
     claim_verify = state.get("claim_verify_signal")
     fact_check   = state.get("fact_check_signal")
+    groq_vision  = state.get("groq_vision_signal")
+    cnndetect    = state.get("cnndetect_signal")
 
-    if claim_verify and claim_verify["score"] >= 0.65:
+    # Text-based overrides
+    if claim_verify and claim_verify["score"] >= 0.50:
         composite = max(composite, claim_verify["score"])
-
-    if fact_check and fact_check["score"] >= 0.65:
+    if fact_check and fact_check["score"] >= 0.50:
         composite = max(composite, fact_check["score"])
+    if (claim_verify and claim_verify["score"] >= 0.50 and
+            fact_check and fact_check["score"] >= 0.40):
+        composite = max(composite, 0.80)
 
-    # If both agree it's fake, push to maximum
-    if (claim_verify and claim_verify["score"] >= 0.65 and
-            fact_check and fact_check["score"] >= 0.50):
-        composite = max(composite, 0.85)
+    # Image-based overrides
+    if groq_vision and groq_vision["score"] >= 0.70:
+        composite = max(composite, groq_vision["score"])
+    if cnndetect and cnndetect["score"] >= 0.80:
+        composite = max(composite, cnndetect["score"])
 
     confidence_score = round(composite * 100, 1)
 
     # --- Verdict label ---
-    if confidence_score >= 70:
+    if confidence_score >= 60:
         verdict = "FAKE"
-    elif confidence_score >= 45:
+    elif confidence_score >= 35:
         verdict = "MISLEADING"
-    elif confidence_score >= 20:
+    elif confidence_score >= 15:
         verdict = "UNCERTAIN"
     else:
         verdict = "REAL"

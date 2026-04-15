@@ -1,10 +1,10 @@
 # VERIFY — AI Misinformation Detector
 
 A multi-agent AI pipeline that fact-checks images, articles, and text claims.
-Submit anything suspicious — get a verdict in seconds.
+Submit anything suspicious, get a verdict in seconds.
 
 Built with LangGraph, Groq, SearXNG, and a Chrome extension frontend.
-Fully FOSS. No paywalls. No vendor lock-in.
+Fully FOSS.
 
 This program can only be hosted locally right now. Follow the repo to host it on your own server.
 
@@ -14,7 +14,7 @@ This program can only be hosted locally right now. Follow the repo to host it on
 
 | Input | What happens |
 |-------|-------------|
-| Image URL | Forensic analysis (ELA, CNNDetect), visual AI inspection, reverse search |
+| Image URL | Forensic analysis (ELA, CNNDetect), visual AI inspection |
 | Article URL | Scrapes text, extracts claims, verifies each against live web search, checks fact-check databases |
 | Text claim | Searches web for contradicting evidence, checks Snopes/Reuters/PolitiFact |
 
@@ -26,41 +26,48 @@ Final output: **REAL / MISLEADING / FAKE / UNCERTAIN** with a confidence score, 
 
 ```
 Input (image URL / article URL / text claim)
-         │
-    [Triage Agent]
-    Classifies input type, downloads image
-         │
-    ┌────┴─────────────────────────┐
-    │ image path                   │ article / claim path
-    ▼                              ▼
-[Forensics]                  [Context Scraper]
-  • ELA — compression analysis      Trafilatura + Nitter for Twitter
-  • CNNDetect — GAN detector (HF)   ▼
-  • C2PA — provenance manifest   [Claim Extractor]
-    │                              Groq LLaMA — extracts 3 key claims
-    ▼                              ▼
-[Groq Vision]                 [Claim Verifier]
-  LLaMA 4 Scout                  SearXNG x 3 queries per claim
-  visual manipulation check       Groq reasons: SUPPORTED/CONTRADICTED
-    │                              ▼
-[Reverse Search]              [Fact Check]
-  SearXNG — finds original        SearXNG → Snopes, Reuters, PolitiFact
-  source, builds timeline          ▼
-    │                          [AI Text Detection]
-    │                              Groq — detects AI-written text
-    └──────────────┬───────────────┘
-                   ▼
-             [Synthesis]
-             Weighted scoring + override logic + Groq narrative
-                   │
-           ┌───────┴────────┐
-           │  Final Verdict  │
-           └───────┬────────┘
-    REAL / MISLEADING / FAKE / UNCERTAIN
-    + confidence score (0–100)
-    + red flags list
-    + source URLs
-    + plain-language summary
+        │
+        ▼
+[Triage Agent]
+- Classifies input type
+- Downloads image
+        │
+        ├───────────────────────────────┐
+        │                               │
+        ▼                               ▼
+[IMAGE PATH]                     [ARTICLE / CLAIM PATH]
+
+[Forensics]                      [Claim Extractor]
+- ELA analysis                  - Groq Llama → extract claims
+- CNNDetect (HF)                        │
+- C2PA (provenance)                    ▼
+        │                        [Claim Verifier]
+        ▼                        - SearXNG (3 queries/claim)
+[Groq Vision]                   - Groq reasoning:
+- Llama 4 Scout                  SUPPORTED / CONTRADICTED
+- Visual inspection                     │
+        │                               ▼
+        │                        [Fact Check]
+        │                        - Snopes, Reuters, PolitiFact
+        │                               ▼
+        │                        [AI Text Detection]
+        │                        - Groq → AI-written detection
+        └───────────────┬──────────────┘
+                        ▼
+                   [Synthesis]
+                   - Weighted scoring
+                   - Override logic
+                   - Groq narrative
+                        │
+                        ▼
+                 [Final Verdict]
+
+REAL / MISLEADING / FAKE / UNCERTAIN
+
++ Confidence score (0–100)
++ Red flags
++ Source URLs
++ Plain-language summary
 ```
 
 ---
@@ -68,34 +75,31 @@ Input (image URL / article URL / text claim)
 ## Project Structure
 
 ```
-Backend/
-├── main.py                     ← FastAPI entry point
-├── config.py                   ← API keys, model names, weights
-├── pipeline.py                 ← LangGraph directed graph
-├── requirements.txt
-├── .env.example
+.
+├── Backend/                    ← Multi-agent pipeline
+│   ├── main.py                 ← FastAPI entry point
+│   ├── config.py               ← API keys, weights
+│   ├── pipeline.py             ← LangGraph pipeline
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── agents/
+│       ├── state.py            ← Shared state
+│       ├── triage.py           ← Input classification
+│       ├── forensics.py        ← ELA + CNNDetect
+│       ├── vision.py           ← Visual analysis
+│       ├── reverse_search.py   ← Search + timeline
+│       ├── context.py          ← Scraper + extraction
+│       ├── claim_verifier.py   ← Web verification
+│       ├── fact_check.py       ← Database search
+│       ├── ai_text.py          ← Detection via Groq
+│       └── synthesis.py        ← Weighted verdict
 │
-├── agents/
-│   ├── state.py                ← Shared TypedDict state
-│   ├── triage.py               ← Input classification + image download + OCR
-│   ├── forensics.py            ← ELA + CNNDetect + C2PA
-│   ├── vision.py               ← Groq LLaMA 4 Scout visual analysis
-│   ├── reverse_search.py       ← SearXNG reverse search + timeline
-│   ├── context.py              ← Trafilatura scraper + claim extractor
-│   ├── claim_verifier.py       ← Web search claim verification
-│   ├── fact_check.py           ← Fact-check database search
-│   ├── ai_text.py              ← AI text detection via Groq
-│   └── synthesis.py            ← Weighted verdict + LLM summary
-│
-├── api/
-│   └── routes.py               ← REST endpoints + SSE + SQLite storage
-│
-Frontend/
-  ├── manifest.json           ← Chrome Manifest V3
-  ├── background.js           ← Service worker + context menus
-  ├── sidepanel.html          ← Extension UI
-  ├── sidepanel.js            ← Polling + verdict display
-  └── generate_icons.py       ← Run once to create icons
+└── Frontend/                   ← Chrome Extension
+    ├── manifest.json
+    ├── background.js
+    ├── sidepanel.html
+    ├── sidepanel.js
+    └── generate_icons.py
 ```
 
 ---
@@ -106,7 +110,7 @@ Frontend/
 
 ```bash
 git clone <your-repo>
-cd verify
+cd verify/Backend
 pip install -r requirements.txt
 ```
 
@@ -143,6 +147,7 @@ docker start searxng
 ### 4. Run the server
 
 ```bash
+# From the backend directory
 python main.py
 # API live at http://localhost:8000
 # Interactive docs at http://localhost:8000/docs
@@ -190,10 +195,10 @@ GET /api/v1/archive?page=1&per_page=20
 
 | Verdict | Confidence | Meaning |
 |---------|-----------|---------|
-| REAL | 0 – 19% | No significant red flags found |
-| UNCERTAIN | 20 – 44% | Mixed signals, insufficient evidence |
-| MISLEADING | 45 – 69% | Claims contradict available evidence |
-| FAKE | 70 – 100% | Strong evidence of falsehood or manipulation |
+| REAL | 0 – 14.9% | No significant red flags found |
+| UNCERTAIN | 15 – 34.9% | Mixed signals, insufficient evidence |
+| MISLEADING | 35 – 59.9% | Claims contradict available evidence |
+| FAKE | 60 – 100% | Strong evidence of falsehood or manipulation |
 
 ---
 
@@ -207,20 +212,20 @@ composite = Σ(score × weight × confidence) / Σ(weight × confidence)
 
 Agents that fail or are skipped contribute zero — the pipeline never crashes from a single agent failure.
 
-**Override logic:** If claim verification or fact-check strongly flags fake (score ≥ 0.65), the composite is forced up regardless of other agents. Human-written fake news gets caught even if image forensics returns clean.
+**Override logic:** If claim verification or fact-check strongly flags fake (score ≥ 0.65), or if visual analysis detects significant manipulation (score ≥ 0.70), the composite is forced up regardless of other agents. Human-written fake news and AI-generated imagery are caught even if other signals are clean.
 
 **Weights:**
 
 | Agent | Weight |
 |-------|--------|
-| Claim Verification | 0.25 |
+| Claim Verification | 0.30 |
 | Fact Check | 0.25 |
 | Visual Analysis | 0.20 |
-| ELA Forensics | 0.08 |
-| CNNDetect | 0.08 |
+| ELA Forensics | 0.10 |
+| CNNDetect | 0.10 |
 | AI Text Detection | 0.05 |
-| Reverse Search | 0.05 |
-| C2PA | 0.04 |
+| Reverse Search | 0.00 (Disabled) |
+| C2PA | 0.00 (Disabled) |
 
 ---
 
@@ -228,14 +233,14 @@ Agents that fail or are skipped contribute zero — the pipeline never crashes f
 
 ### Setup
 ```bash
-cd extension
+cd Frontend
 pip install Pillow
 python generate_icons.py
 ```
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
-3. Click **Load unpacked** → select the `extension/` folder
+3. Click **Load unpacked** → select the `Frontend/` folder
 
 ### Usage
 - **Right-click any image** → Fact-check this image
@@ -262,8 +267,8 @@ Every time you start working run these three commands:
 
 ```bash
 docker start searxng
-conda activate your_env
-python main.py
+conda activate stats
+cd Backend && python main.py
 ```
 
 ---

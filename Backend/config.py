@@ -30,12 +30,12 @@ ELA_THRESHOLD = 15.0      # Mean pixel diff above this → suspicious
 
 # --- Scoring weights (must sum to 1.0) ---
 WEIGHTS = {
-    "ela_signal":            0.05,
-    "cnndetect_signal":      0.05,
+    "ela_signal":            0.10,
+    "cnndetect_signal":      0.10,
     "c2pa_signal":           0.00,
-    "groq_vision_signal":    0.15,
+    "groq_vision_signal":    0.20,
     "reverse_search_signal": 0.00,
-    "fact_check_signal":     0.35,
-    "claim_verify_signal":   0.35,
+    "fact_check_signal":     0.25,
+    "claim_verify_signal":   0.30,
     "ai_text_signal":        0.05,
 }
